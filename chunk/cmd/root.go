@@ -23,13 +23,21 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/nelz9999/chunk/stream"
 	"github.com/spf13/cobra"
 )
 
 var cfgFile string
+
+var debug bool
+var maxSize int
+var lowSize int
+var maxWait int
+var lowWait int
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -45,15 +53,17 @@ to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		sizer := stream.InterFunc(func() int {
-			return 17
-		})
-		waiter := stream.InterFunc(func() int {
-			return 50
-		})
+		in := buildReader()
+		defer in.Close()
 
-		in := stream.New(os.Stdin, sizer, waiter)
-		io.Copy(os.Stdout, in)
+		out := buildWriter()
+		defer out.Close()
+
+		sizer, buf := buildSizer()
+		waiter := buildWaiter()
+		src := stream.New(in, sizer, waiter)
+
+		io.CopyBuffer(out, src, buf)
 	},
 }
 
@@ -77,6 +87,12 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	// RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	RootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "send debugging output to stderr")
+	RootCmd.Flags().IntVarP(&maxSize, "max-size", "s", 16, "set the maximum chunk size to send")
+	RootCmd.Flags().IntVarP(&lowSize, "low-size", "l", 0, "set to a non-zero value less than the max-size to send random variable sized chunks")
+	RootCmd.Flags().IntVarP(&maxWait, "max-wait", "w", 100, "set the period, in milliseconds, to wait between chunk delivery")
+	RootCmd.Flags().IntVarP(&lowWait, "min-wait", "m", 0, "set to a non-zero value less than the max-wait to wait random variable periods between chunks")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -103,4 +119,57 @@ func initConfig() {
 	// if err := viper.ReadInConfig(); err == nil {
 	// 	fmt.Println("Using config file:", viper.ConfigFileUsed())
 	// }
+}
+
+func buildReader() io.ReadCloser {
+	result := os.Stdin
+
+	return result
+}
+
+func buildWriter() io.WriteCloser {
+	result := os.Stdout
+
+	return result
+}
+
+func buildSizer() (stream.Inter, []byte) {
+	buf := make([]byte, maxSize)
+	sizer := stream.InterFunc(func() int {
+		return maxSize
+	})
+
+	if lowSize > maxSize {
+		panic(fmt.Sprintf("lowSize > maxSize: %d > %d", lowSize, maxSize))
+	}
+
+	if lowSize > 0 && lowSize < maxSize {
+		breadth := maxSize - lowSize + 1
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+		sizer = stream.InterFunc(func() int {
+			return lowSize + r.Intn(breadth)
+		})
+	}
+
+	return sizer, buf
+}
+
+func buildWaiter() stream.Inter {
+	waiter := stream.InterFunc(func() int {
+		return maxWait
+	})
+
+	if lowWait > maxWait {
+		panic(fmt.Sprintf("lowWait > maxWait: %d > %d", lowWait, maxWait))
+	}
+
+	if lowWait > 0 && lowWait < maxWait {
+		breadth := maxWait - lowWait + 1
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+		waiter = stream.InterFunc(func() int {
+			return lowWait + r.Intn(breadth)
+		})
+	}
+
+	return waiter
 }
