@@ -23,7 +23,6 @@ package stream
 import (
 	"fmt"
 	"io"
-	"os"
 	"time"
 )
 
@@ -45,7 +44,7 @@ func (f ReaderFunc) Read(p []byte) (n int, err error) {
 
 // New creates a new io.Reader that spits out chunks of data after waiting
 // a bit of time.
-func New(r io.Reader, sizer Inter, waiter Inter) io.Reader {
+func New(r io.Reader, sizer Inter, waiter Inter, log io.Writer) io.Reader {
 	return ReaderFunc(func(p []byte) (int, error) {
 		wait := waiter.Int()
 		max := sizer.Int()
@@ -54,7 +53,7 @@ func New(r io.Reader, sizer Inter, waiter Inter) io.Reader {
 		}
 		n, err := r.Read(p[0:max])
 		// TODO: Debug
-		fmt.Fprintf(os.Stderr, "\nwait: %d; max: %d; size: %d\n", wait, max, n)
+		fmt.Fprintf(log, "\nwait: %d; max: %d; size: %d\n", wait, max, n)
 		if err != nil {
 			return n, err
 		}

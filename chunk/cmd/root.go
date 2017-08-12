@@ -23,6 +23,7 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"time"
@@ -38,6 +39,9 @@ var maxSize int
 var lowSize int
 var maxWait int
 var lowWait int
+var input string
+
+// var output string
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -59,9 +63,11 @@ to quickly create a Cobra application.`,
 		out := buildWriter()
 		defer out.Close()
 
+		log := buildLog()
+
 		sizer, buf := buildSizer()
 		waiter := buildWaiter()
-		src := stream.New(in, sizer, waiter)
+		src := stream.New(in, sizer, waiter, log)
 
 		io.CopyBuffer(out, src, buf)
 	},
@@ -93,6 +99,8 @@ func init() {
 	RootCmd.Flags().IntVarP(&lowSize, "low-size", "l", 0, "set to a non-zero value less than the max-size to send random variable sized chunks")
 	RootCmd.Flags().IntVarP(&maxWait, "max-wait", "w", 100, "set the period, in milliseconds, to wait between chunk delivery")
 	RootCmd.Flags().IntVarP(&lowWait, "min-wait", "m", 0, "set to a non-zero value less than the max-wait to wait random variable periods between chunks")
+	RootCmd.Flags().StringVarP(&input, "input", "i", "", "specify source file, otherwise defaults to stdin")
+	// RootCmd.Flags().StringVarP(&output, "ouput", "o", "", "specify destination file, otherwise defaults to stdout")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -124,12 +132,38 @@ func initConfig() {
 func buildReader() io.ReadCloser {
 	result := os.Stdin
 
+	if input != "" {
+		var err error
+		result, err = os.Open(input)
+		if err != nil {
+			panic(err)
+		}
+	}
 	return result
 }
 
 func buildWriter() io.WriteCloser {
 	result := os.Stdout
 
+	// if output != "" {
+	// 	var err error
+	// 	result, err = os.OpenFile(
+	// 		output,
+	// 		os.O_WRONLY|os.O_APPEND|os.O_CREATE,
+	// 		0600)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// }
+
+	return result
+}
+
+func buildLog() io.Writer {
+	result := ioutil.Discard
+	if debug {
+		result = os.Stderr
+	}
 	return result
 }
 
