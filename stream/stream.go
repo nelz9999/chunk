@@ -26,18 +26,23 @@ import (
 	"time"
 )
 
+// Inter is an interface for arbitrary objects that return Ints
 type Inter interface {
 	Int() int
 }
 
+// InterFunc is an adapter so that a function can implement the Inter interface
 type InterFunc func() int
 
+// Int fulfils the Inter interface
 func (f InterFunc) Int() int {
 	return f()
 }
 
+// ReaderFunc is an adapter so that a function can implement the io.Reader interface
 type ReaderFunc func([]byte) (int, error)
 
+// Read fulfils the io.Reader interface
 func (f ReaderFunc) Read(p []byte) (n int, err error) {
 	return f(p)
 }
@@ -52,7 +57,6 @@ func New(r io.Reader, sizer Inter, waiter Inter, log io.Writer) io.Reader {
 			max = len(p)
 		}
 		n, err := r.Read(p[0:max])
-		// TODO: Debug
 		fmt.Fprintf(log, "\nwait: %d; max: %d; size: %d\n", wait, max, n)
 		if err != nil {
 			return n, err
