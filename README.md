@@ -3,6 +3,25 @@ The chunk command line utility enables a user to add delays between streaming of
 
 This may be helpful to people who are trying to simulate the output of live streaming applications, like audio or video streaming.
 
+# Help output
+```
+$ chunk -h
+The chunk command line utility enables a user to add delays between
+streaming of chunks of bytes from the source stream
+
+Usage:
+  chunk [flags]
+
+Flags:
+  -d, --debug          send debugging output to stderr
+  -h, --help           help for chunk
+  -i, --input string   specify source file, otherwise defaults to stdin
+  -l, --low-size int   set to a non-zero value less than the max-size to send random variable sized chunks of bytes
+  -s, --max-size int   set the maximum chunk size, in bytes, to send (default 16)
+  -w, --max-wait int   set the period, in milliseconds, to wait between chunk delivery (default 100)
+  -m, --min-wait int   set to a non-zero value less than the max-wait to wait random variable periods between chunks
+```
+
 # Example usage
 First, let's create a file filled with 1024 bytes of arbitrary data.
 ```
